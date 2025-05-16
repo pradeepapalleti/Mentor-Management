@@ -7,54 +7,52 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'mentor') {
     exit();
 }
 
-if (!isset($_GET['mentee_id'])) {
-    header("Location: mentor_dashboard.php");
-    exit();
-}
-
-$mentee_id = $_GET['mentee_id'];
 $mentor_id = $_SESSION['user_id'];
 
-// Verify that the mentee belongs to this mentor
-$check_sql = "SELECT m.name FROM mentees m 
-              JOIN mentor_mentee_relationship mmr ON m.id = mmr.mentee_id 
-              WHERE m.id = ? AND mmr.mentor_id = ?";
-$check_stmt = $conn->prepare($check_sql);
-$check_stmt->bind_param("ii", $mentee_id, $mentor_id);
-$check_stmt->execute();
-$result = $check_stmt->get_result();
-
-if ($result->num_rows == 0) {
-    header("Location: mentor_dashboard.php");
-    exit();
-}
-
-$mentee = $result->fetch_assoc();
-
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $activity_type = $_POST['activity_type'];
-    $description = $_POST['description'];
-    $date = $_POST['date'];
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     
-    $sql = "INSERT INTO activities (mentee_id, activity_type, description, date) 
-            VALUES (?, ?, ?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("isss", $mentee_id, $activity_type, $description, $date);
+    // Start transaction
+    $conn->begin_transaction();
     
-    if ($stmt->execute()) {
+    try {
+        // Insert into mentees table
+        $sql = "INSERT INTO mentees (name, email, password) VALUES (?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sss", $name, $email, $password);
+        $stmt->execute();
+        $mentee_id = $conn->insert_id;
+        
+        // Insert into users table
+        $sql = "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'mentee')";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sss", $name, $email, $password);
+        $stmt->execute();
+        
+        // Create mentor-mentee relationship
+        $sql = "INSERT INTO mentor_mentee_relationship (mentor_id, mentee_id) VALUES (?, ?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ii", $mentor_id, $mentee_id);
+        $stmt->execute();
+        
+        $conn->commit();
         header("Location: mentor_dashboard.php");
         exit();
-    } else {
-        $error = "Error adding activity: " . $conn->error;
+    } catch (Exception $e) {
+        $conn->rollback();
+        $error = "Error adding mentee: " . $e->getMessage();
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Activity</title>
+    <title>Add New Mentee</title>
     <link rel="stylesheet" href="style.css">
     <style>
         body {
@@ -92,9 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-weight: 500;
             font-size: 1.1em;
         }
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
+        .form-group input {
             width: 100%;
             padding: 12px;
             border: 1px solid #475569;
@@ -104,13 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 1em;
             transition: all 0.3s ease;
         }
-        .form-group textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
+        .form-group input:focus {
             border-color: #38bdf8;
             outline: none;
             box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
@@ -164,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <a href="mentor_dashboard.php" class="back-link">← Back to Dashboard</a>
     
     <div class="form">
-        <h2>Add Activity</h2>
+        <h2>Add New Mentee</h2>
         
         <?php if (isset($error)): ?>
             <div class="error"><?php echo htmlspecialchars($error); ?></div>
@@ -172,28 +162,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         <form method="POST">
             <div class="form-group">
-                <label>Activity Type:</label>
-                <select name="activity_type" required>
-                    <option value="">Select Activity Type</option>
-                    <option value="Workshop">Workshop</option>
-                    <option value="Seminar">Seminar</option>
-                    <option value="Conference">Conference</option>
-                    <option value="Project">Project</option>
-                    <option value="Competition">Competition</option>
-                    <option value="Other">Other</option>
-                </select>
+                <label>Name:</label>
+                <input type="text" name="name" required placeholder="Enter mentee's full name">
             </div>
             <div class="form-group">
-                <label>Description:</label>
-                <textarea name="description" required placeholder="Enter activity description"></textarea>
+                <label>Email:</label>
+                <input type="email" name="email" required placeholder="Enter mentee's email address">
             </div>
             <div class="form-group">
-                <label>Date:</label>
-                <input type="date" name="date" required>
+                <label>Password:</label>
+                <input type="password" name="password" required placeholder="Enter a secure password">
             </div>
-            <button type="submit" class="button">Add Activity</button>
+            <button type="submit" class="button">Add Mentee</button>
         </form>
     </div>
 </div>
 </body>
-</html>
+</html> 

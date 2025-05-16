@@ -32,20 +32,20 @@ if ($result->num_rows == 0) {
 $mentee = $result->fetch_assoc();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $activity_type = $_POST['activity_type'];
-    $description = $_POST['description'];
-    $date = $_POST['date'];
+    $semester = $_POST['semester'];
+    $gpa = $_POST['gpa'];
+    $academic_year = $_POST['academic_year'];
     
-    $sql = "INSERT INTO activities (mentee_id, activity_type, description, date) 
+    $sql = "INSERT INTO semester_results (mentee_id, semester, gpa, academic_year) 
             VALUES (?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("isss", $mentee_id, $activity_type, $description, $date);
+    $stmt->bind_param("isds", $mentee_id, $semester, $gpa, $academic_year);
     
     if ($stmt->execute()) {
         header("Location: mentor_dashboard.php");
         exit();
     } else {
-        $error = "Error adding activity: " . $conn->error;
+        $error = "Error adding semester result: " . $conn->error;
     }
 }
 ?>
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Activity</title>
+    <title>Add Semester Result</title>
     <link rel="stylesheet" href="style.css">
     <style>
         body {
@@ -93,8 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 1.1em;
         }
         .form-group input,
-        .form-group select,
-        .form-group textarea {
+        .form-group select {
             width: 100%;
             padding: 12px;
             border: 1px solid #475569;
@@ -104,13 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 1em;
             transition: all 0.3s ease;
         }
-        .form-group textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
         .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
+        .form-group select:focus {
             border-color: #38bdf8;
             outline: none;
             box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
@@ -164,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <a href="mentor_dashboard.php" class="back-link">← Back to Dashboard</a>
     
     <div class="form">
-        <h2>Add Activity</h2>
+        <h2>Add Semester Result</h2>
         
         <?php if (isset($error)): ?>
             <div class="error"><?php echo htmlspecialchars($error); ?></div>
@@ -172,28 +166,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         <form method="POST">
             <div class="form-group">
-                <label>Activity Type:</label>
-                <select name="activity_type" required>
-                    <option value="">Select Activity Type</option>
-                    <option value="Workshop">Workshop</option>
-                    <option value="Seminar">Seminar</option>
-                    <option value="Conference">Conference</option>
-                    <option value="Project">Project</option>
-                    <option value="Competition">Competition</option>
-                    <option value="Other">Other</option>
+                <label>Semester:</label>
+                <select name="semester" required>
+                    <option value="">Select Semester</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="4">Semester 4</option>
+                    <option value="5">Semester 5</option>
+                    <option value="6">Semester 6</option>
+                    <option value="7">Semester 7</option>
+                    <option value="8">Semester 8</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Description:</label>
-                <textarea name="description" required placeholder="Enter activity description"></textarea>
+                <label>GPA:</label>
+                <input type="number" name="gpa" step="0.01" min="0" max="10" required placeholder="Enter GPA (0-10)">
             </div>
             <div class="form-group">
-                <label>Date:</label>
-                <input type="date" name="date" required>
+                <label>Academic Year:</label>
+                <input type="text" name="academic_year" required placeholder="e.g., 2023-2024">
             </div>
-            <button type="submit" class="button">Add Activity</button>
+            <button type="submit" class="button">Add Result</button>
         </form>
     </div>
 </div>
 </body>
-</html>
+</html> 

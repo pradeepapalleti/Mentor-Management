@@ -32,20 +32,21 @@ if ($result->num_rows == 0) {
 $mentee = $result->fetch_assoc();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $activity_type = $_POST['activity_type'];
-    $description = $_POST['description'];
-    $date = $_POST['date'];
+    $certification_name = $_POST['certification_name'];
+    $issuing_organization = $_POST['issuing_organization'];
+    $issue_date = $_POST['issue_date'];
+    $expiry_date = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
     
-    $sql = "INSERT INTO activities (mentee_id, activity_type, description, date) 
-            VALUES (?, ?, ?, ?)";
+    $sql = "INSERT INTO certifications (mentee_id, certification_name, issuing_organization, issue_date, expiry_date) 
+            VALUES (?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("isss", $mentee_id, $activity_type, $description, $date);
+    $stmt->bind_param("issss", $mentee_id, $certification_name, $issuing_organization, $issue_date, $expiry_date);
     
     if ($stmt->execute()) {
         header("Location: mentor_dashboard.php");
         exit();
     } else {
-        $error = "Error adding activity: " . $conn->error;
+        $error = "Error adding certification: " . $conn->error;
     }
 }
 ?>
@@ -54,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Activity</title>
+    <title>Add Certification</title>
     <link rel="stylesheet" href="style.css">
     <style>
         body {
@@ -92,9 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-weight: 500;
             font-size: 1.1em;
         }
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
+        .form-group input {
             width: 100%;
             padding: 12px;
             border: 1px solid #475569;
@@ -104,13 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 1em;
             transition: all 0.3s ease;
         }
-        .form-group textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
+        .form-group input:focus {
             border-color: #38bdf8;
             outline: none;
             box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
@@ -164,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <a href="mentor_dashboard.php" class="back-link">← Back to Dashboard</a>
     
     <div class="form">
-        <h2>Add Activity</h2>
+        <h2>Add Certification</h2>
         
         <?php if (isset($error)): ?>
             <div class="error"><?php echo htmlspecialchars($error); ?></div>
@@ -172,28 +165,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         <form method="POST">
             <div class="form-group">
-                <label>Activity Type:</label>
-                <select name="activity_type" required>
-                    <option value="">Select Activity Type</option>
-                    <option value="Workshop">Workshop</option>
-                    <option value="Seminar">Seminar</option>
-                    <option value="Conference">Conference</option>
-                    <option value="Project">Project</option>
-                    <option value="Competition">Competition</option>
-                    <option value="Other">Other</option>
-                </select>
+                <label>Certification Name:</label>
+                <input type="text" name="certification_name" required placeholder="Enter certification name">
             </div>
             <div class="form-group">
-                <label>Description:</label>
-                <textarea name="description" required placeholder="Enter activity description"></textarea>
+                <label>Issuing Organization:</label>
+                <input type="text" name="issuing_organization" required placeholder="Enter organization name">
             </div>
             <div class="form-group">
-                <label>Date:</label>
-                <input type="date" name="date" required>
+                <label>Issue Date:</label>
+                <input type="date" name="issue_date" required>
             </div>
-            <button type="submit" class="button">Add Activity</button>
+            <div class="form-group">
+                <label>Expiry Date (Optional):</label>
+                <input type="date" name="expiry_date">
+            </div>
+            <button type="submit" class="button">Add Certification</button>
         </form>
     </div>
 </div>
 </body>
-</html>
+</html> 
