@@ -1,52 +1,78 @@
 <?php
 session_start();
-include 'db.php';
+require_once 'db.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'mentor') {
-    header("Location: login.php");
+// Check if user is logged in and is a mentor
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mentor') {
+    header('Location: login.php');
     exit();
 }
 
-if (!isset($_GET['mentee_id'])) {
-    header("Location: mentor_dashboard.php");
-    exit();
-}
-
-$mentee_id = $_GET['mentee_id'];
-$mentor_id = $_SESSION['user_id'];
-
-// Verify that the mentee belongs to this mentor
-$check_sql = "SELECT m.name FROM mentees m 
-              JOIN mentor_mentee_relationship mmr ON m.id = mmr.mentee_id 
-              WHERE m.id = ? AND mmr.mentor_id = ?";
-$check_stmt = $conn->prepare($check_sql);
-$check_stmt->bind_param("ii", $mentee_id, $mentor_id);
-$check_stmt->execute();
-$result = $check_stmt->get_result();
-
-if ($result->num_rows == 0) {
-    header("Location: mentor_dashboard.php");
-    exit();
-}
-
-$mentee = $result->fetch_assoc();
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $mentee_id = $_POST['mentee_id'];
     $semester = $_POST['semester'];
-    $gpa = $_POST['gpa'];
     $academic_year = $_POST['academic_year'];
     
-    $sql = "INSERT INTO semester_results (mentee_id, semester, gpa, academic_year) 
-            VALUES (?, ?, ?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("isds", $mentee_id, $semester, $gpa, $academic_year);
+    // Start transaction
+    $conn->begin_transaction();
     
-    if ($stmt->execute()) {
-        header("Location: mentor_dashboard.php");
+    try {
+        // Insert semester record
+        $sql = "INSERT INTO semesters (semester_number, academic_year, mentee_id) VALUES (?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("isi", $semester, $academic_year, $mentee_id);
+        $stmt->execute();
+        $semester_id = $conn->insert_id;
+        
+        // Insert subjects and their marks
+        $subjects = $_POST['subjects'];
+        foreach ($subjects as $subject) {
+            $sql = "INSERT INTO subjects (semester_id, subject_name, subject_code, credits) 
+                    VALUES (?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("issi", $semester_id, $subject['name'], $subject['code'], $subject['credits']);
+            $stmt->execute();
+            $subject_id = $conn->insert_id;
+            
+            $sql = "INSERT INTO subject_marks (subject_id, first_ia_marks, second_ia_marks, final_exam_marks, project_marks) 
+                    VALUES (?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("idddd", $subject_id, $subject['first_ia'], $subject['second_ia'], $subject['final_exam'], $subject['project']);
+            $stmt->execute();
+        }
+        
+        $conn->commit();
+        $_SESSION['success_message'] = "Marks added successfully!";
+        header('Location: marks.php?mentee_id=' . $mentee_id);
         exit();
-    } else {
-        $error = "Error adding semester result: " . $conn->error;
+    } catch (Exception $e) {
+        $conn->rollback();
+        $_SESSION['error_message'] = "Error adding marks: " . $e->getMessage();
     }
+}
+
+// Get mentee_id from URL if not POST
+$mentee_id = isset($_GET['mentee_id']) ? $_GET['mentee_id'] : null;
+
+// If no mentee_id provided, redirect to dashboard
+if (!$mentee_id) {
+    header('Location: mentor_dashboard.php');
+    exit();
+}
+
+// Verify that the mentee exists and is assigned to this mentor
+$sql = "SELECT m.id FROM mentees m 
+        JOIN mentor_mentee_relationship mmr ON m.id = mmr.mentee_id 
+        JOIN mentors mt ON mmr.mentor_id = mt.id
+        WHERE m.id = ? AND mt.user_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("ii", $mentee_id, $_SESSION['user_id']);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows === 0) {
+    header('Location: mentor_dashboard.php');
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -66,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
+            max-width: 1200px;
             margin: 40px auto;
         }
         .form {
@@ -126,6 +152,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             background: #0284c7;
             transform: translateY(-2px);
         }
+        .subject-container {
+            background: #475569;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #64748b;
+        }
+        .subject-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .subject-title {
+            color: #38bdf8;
+            font-size: 1.2em;
+            font-weight: 500;
+        }
+        .remove-subject {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .remove-subject:hover {
+            background: #dc2626;
+        }
+        .add-subject {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .add-subject:hover {
+            background: #059669;
+        }
         .error {
             color: #f87171;
             margin-bottom: 20px;
@@ -164,7 +232,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
         
-        <form method="POST">
+        <form method="POST" id="marksForm">
+            <input type="hidden" name="mentee_id" value="<?php echo htmlspecialchars($mentee_id); ?>">
+            
             <div class="form-group">
                 <label>Semester:</label>
                 <select name="semester" required>
@@ -179,17 +249,132 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <option value="8">Semester 8</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>GPA:</label>
-                <input type="number" name="gpa" step="0.01" min="0" max="10" required placeholder="Enter GPA (0-10)">
-            </div>
+            
             <div class="form-group">
                 <label>Academic Year:</label>
                 <input type="text" name="academic_year" required placeholder="e.g., 2023-2024">
             </div>
-            <button type="submit" class="button">Add Result</button>
+            
+            <div id="subjectsContainer">
+                <!-- Initial 5 subjects -->
+                <?php for($i = 0; $i < 5; $i++): ?>
+                <div class="subject-container">
+                    <div class="subject-header">
+                        <div class="subject-title">Subject <?php echo $i + 1; ?></div>
+                        <?php if($i > 0): ?>
+                        <button type="button" class="remove-subject" onclick="removeSubject(this)">Remove</button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Subject Name:</label>
+                                <input type="text" name="subjects[<?php echo $i; ?>][name]" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Subject Code:</label>
+                                <input type="text" name="subjects[<?php echo $i; ?>][code]" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Credits:</label>
+                                <input type="number" name="subjects[<?php echo $i; ?>][credits]" min="1" max="4" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>First IA:</label>
+                                <input type="number" name="subjects[<?php echo $i; ?>][first_ia]" step="0.01" min="0" max="100" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Second IA:</label>
+                                <input type="number" name="subjects[<?php echo $i; ?>][second_ia]" step="0.01" min="0" max="100" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Final Exam:</label>
+                                <input type="number" name="subjects[<?php echo $i; ?>][final_exam]" step="0.01" min="0" max="100" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endfor; ?>
+            </div>
+            
+            <button type="button" class="add-subject" onclick="addSubject()">Add Another Subject</button>
+            <button type="submit" class="button">Save All Marks</button>
         </form>
     </div>
 </div>
+
+<script>
+let subjectCount = 5;
+
+function addSubject() {
+    const container = document.getElementById('subjectsContainer');
+    const newSubject = document.createElement('div');
+    newSubject.className = 'subject-container';
+    newSubject.innerHTML = `
+        <div class="subject-header">
+            <div class="subject-title">Subject ${subjectCount + 1}</div>
+            <button type="button" class="remove-subject" onclick="removeSubject(this)">Remove</button>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label>Subject Name:</label>
+                    <input type="text" name="subjects[${subjectCount}][name]" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label>Subject Code:</label>
+                    <input type="text" name="subjects[${subjectCount}][code]" required>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Credits:</label>
+                    <input type="number" name="subjects[${subjectCount}][credits]" min="1" max="4" required>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>First IA:</label>
+                    <input type="number" name="subjects[${subjectCount}][first_ia]" step="0.01" min="0" max="100" required>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Second IA:</label>
+                    <input type="number" name="subjects[${subjectCount}][second_ia]" step="0.01" min="0" max="100" required>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Final Exam:</label>
+                    <input type="number" name="subjects[${subjectCount}][final_exam]" step="0.01" min="0" max="100" required>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newSubject);
+    subjectCount++;
+}
+
+function removeSubject(button) {
+    button.closest('.subject-container').remove();
+}
+</script>
 </body>
 </html> 

@@ -1,50 +1,69 @@
 <?php
 session_start();
-include 'db.php';
+require_once 'db.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'mentor') {
-    header("Location: login.php");
+// Check if user is logged in and is a mentor
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mentor') {
+    header('Location: login.php');
     exit();
 }
 
-$mentor_id = $_SESSION['user_id'];
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = $_POST['name'];
     $email = $_POST['email'];
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    
+    $mobile_number = $_POST['mobile_number'];
+    $parent_mobile_number = $_POST['parent_mobile_number'];
+    $usn = $_POST['usn'];
+    $semester = $_POST['semester'];
+    $department = $_POST['department'];
+    $password = password_hash($usn, PASSWORD_DEFAULT); // Use USN as initial password
+    $mentor_id = $_SESSION['user_id'];
+
     // Start transaction
     $conn->begin_transaction();
-    
+
     try {
-        // Insert into mentees table
-        $sql = "INSERT INTO mentees (name, email, password) VALUES (?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sss", $name, $email, $password);
-        $stmt->execute();
+        // First insert into users table
+        $user_sql = "INSERT INTO users (name, email, password, role, mobile_number, parent_mobile_number) 
+                    VALUES (?, ?, ?, 'mentee', ?, ?)";
+        $user_stmt = $conn->prepare($user_sql);
+        $user_stmt->bind_param("sssss", $name, $email, $password, $mobile_number, $parent_mobile_number);
+        $user_stmt->execute();
+        $user_id = $conn->insert_id;
+
+        // Then insert into mentees table with new fields
+        $mentee_sql = "INSERT INTO mentees (user_id, usn, semester, department) VALUES (?, ?, ?, ?)";
+        $mentee_stmt = $conn->prepare($mentee_sql);
+        $mentee_stmt->bind_param("isis", $user_id, $usn, $semester, $department);
+        $mentee_stmt->execute();
         $mentee_id = $conn->insert_id;
-        
-        // Insert into users table
-        $sql = "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'mentee')";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sss", $name, $email, $password);
-        $stmt->execute();
-        
+
         // Create mentor-mentee relationship
-        $sql = "INSERT INTO mentor_mentee_relationship (mentor_id, mentee_id) VALUES (?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ii", $mentor_id, $mentee_id);
-        $stmt->execute();
-        
+        $relationship_sql = "INSERT INTO mentor_mentee_relationship (mentor_id, mentee_id) VALUES (?, ?)";
+        $relationship_stmt = $conn->prepare($relationship_sql);
+        $relationship_stmt->bind_param("ii", $mentor_id, $mentee_id);
+        $relationship_stmt->execute();
+
+        // Commit transaction
         $conn->commit();
-        header("Location: mentor_dashboard.php");
+
+        // Redirect to mentee list with success message
+        $_SESSION['success_message'] = "Mentee added successfully! Initial password is their USN.";
+        header('Location: mentee_list.php');
         exit();
     } catch (Exception $e) {
+        // Rollback transaction on error
         $conn->rollback();
-        $error = "Error adding mentee: " . $e->getMessage();
+        $_SESSION['error'] = "Error adding mentee: " . $e->getMessage();
+        header('Location: mentee_list.php');
+        exit();
     }
+} else {
+    // If not POST request, redirect to mentee list
+    header('Location: mentee_list.php');
+    exit();
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -90,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-weight: 500;
             font-size: 1.1em;
         }
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 12px;
             border: 1px solid #475569;
@@ -100,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 1em;
             transition: all 0.3s ease;
         }
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             border-color: #38bdf8;
             outline: none;
             box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
@@ -170,8 +189,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <input type="email" name="email" required placeholder="Enter mentee's email address">
             </div>
             <div class="form-group">
-                <label>Password:</label>
-                <input type="password" name="password" required placeholder="Enter a secure password">
+                <label>USN:</label>
+                <input type="text" name="usn" required placeholder="Enter mentee's USN" pattern="[1-9][A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{3}" title="Please enter a valid USN (e.g., 1MS20CS001)">
+            </div>
+            <div class="form-group">
+                <label>Semester:</label>
+                <select name="semester" required>
+                    <option value="">Select Semester</option>
+                    <?php for($i = 1; $i <= 8; $i++): ?>
+                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Department:</label>
+                <select name="department" required>
+                    <option value="">Select Department</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Information Science">Information Science</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Mechanical">Mechanical</option>
+                    <option value="Civil">Civil</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Mobile Number:</label>
+                <input type="text" name="mobile_number" required placeholder="Enter mentee's mobile number">
+            </div>
+            <div class="form-group">
+                <label>Parent Mobile Number:</label>
+                <input type="text" name="parent_mobile_number" required placeholder="Enter mentee's parent mobile number">
             </div>
             <button type="submit" class="button">Add Mentee</button>
         </form>

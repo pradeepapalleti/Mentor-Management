@@ -28,12 +28,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_certification'])) 
     $stmt->execute();
 }
 
-// Get mentee's name
-$mentee_query = $conn->query("SELECT name FROM mentees WHERE id = $mentee_id");
-$mentee = $mentee_query->fetch_assoc();
+// Get mentee's name and details
+$mentee_query = "SELECT m.*, u.name, u.email, u.mobile_number, u.parent_mobile_number 
+                FROM mentees m 
+                JOIN users u ON m.user_id = u.id 
+                WHERE m.id = ?";
+$stmt = $conn->prepare($mentee_query);
+$stmt->bind_param("i", $mentee_id);
+$stmt->execute();
+$mentee = $stmt->get_result()->fetch_assoc();
 
 // Debug mentee data
 error_log("Mentee data: " . print_r($mentee, true));
+
+// Get mentor details
+$mentor_query = "SELECT u.name, u.email, u.mobile_number 
+                FROM mentors m 
+                JOIN users u ON m.user_id = u.id 
+                JOIN mentor_mentee_relationship mmr ON m.id = mmr.mentor_id 
+                WHERE mmr.mentee_id = ?";
+$stmt = $conn->prepare($mentor_query);
+$stmt->bind_param("i", $mentee_id);
+$stmt->execute();
+$mentor = $stmt->get_result()->fetch_assoc();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -46,6 +63,12 @@ error_log("Mentee data: " . print_r($mentee, true));
         body {
             background: #0f172a;
             color: #ffffff;
+            text-size-adjust: 100%;
+            -webkit-text-size-adjust: 100%;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
         }
         .container {
             background: #1e293b;
@@ -70,7 +93,7 @@ error_log("Mentee data: " . print_r($mentee, true));
             padding-bottom: 10px;
         }
         .section-header h3 {
-            color: #ffffff;
+            color: #38bdf8;
             font-size: 1.4em;
         }
         .dashboard-header {
@@ -90,6 +113,55 @@ error_log("Mentee data: " . print_r($mentee, true));
             font-size: 1.8em;
             color: #38bdf8;
         }
+        .semester-result {
+            background: #334155;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .semester-result h4 {
+            color: #38bdf8;
+            margin-bottom: 15px;
+        }
+        .semester-result p {
+            color: #e2e8f0;
+            margin: 8px 0;
+        }
+        .activity {
+            background: #334155;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .activity-header strong {
+            color: #38bdf8;
+            font-size: 1.2em;
+        }
+        .activity-content p {
+            color: #e2e8f0;
+            margin: 8px 0;
+        }
+        .activity-date {
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+        .mentor-info {
+            background: #334155;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .mentor-info h3 {
+            color: #38bdf8;
+            margin-bottom: 15px;
+        }
+        .mentor-info p {
+            color: #e2e8f0;
+            margin: 8px 0;
+        }
         .add-button {
             background: #38bdf8;
             color: white;
@@ -104,270 +176,85 @@ error_log("Mentee data: " . print_r($mentee, true));
             background: #0284c7;
             transform: translateY(-2px);
         }
-        .data-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .data-item {
-            background: #475569;
-            padding: 15px;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .data-item h5 {
-            color: #38bdf8;
-            margin: 0 0 10px 0;
-            font-size: 1.1em;
-            border-bottom: 1px solid #64748b;
-            padding-bottom: 8px;
-        }
-        .data-item p {
-            color: #e2e8f0;
-            margin: 8px 0;
-            font-size: 0.95em;
-            line-height: 1.4;
-        }
-        .mentor-info {
-            background: #334155;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #475569;
-        }
-        .mentor-info h3 {
-            color: #38bdf8;
-            margin-top: 0;
-            font-size: 1.4em;
-        }
-        .mentor-info p {
-            color: #e2e8f0;
-            margin: 8px 0;
-            font-size: 1em;
-        }
-        .logout {
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            background: #475569;
-            transition: all 0.3s ease;
-            border: 1px solid #64748b;
-        }
-        .logout:hover {
-            background: #64748b;
-            transform: translateY(-2px);
-        }
-        .form {
-            background: #334155;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            border: 1px solid #475569;
-            margin-bottom: 20px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #e2e8f0;
-            font-weight: 500;
-        }
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #475569;
-            border-radius: 4px;
-            background: #475569;
-            color: #ffffff;
-            transition: all 0.3s ease;
-        }
-        .form-group input:focus,
-        .form-group textarea:focus {
-            border-color: #38bdf8;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
-            background: #334155;
-        }
-        .button {
-            background: #38bdf8;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .button:hover {
-            background: #0284c7;
-            transform: translateY(-2px);
-        }
-        .error {
-            color: #f87171;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(248,113,113,0.1);
-            border-radius: 4px;
-            border: 1px solid rgba(248,113,113,0.2);
-        }
-        .semester-result, .certification, .activity {
-            background: #475569;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            border: 1px solid #64748b;
-        }
-        .semester-result h4, .certification-header strong {
-            color: #38bdf8;
-            margin: 0 0 8px 0;
-        }
-        .activity-content {
-            color: #e2e8f0;
-        }
-        .activity-header strong {
-            color: #38bdf8;
-        }
-        .activity-date {
-            color: #94a3b8;
-            font-size: 0.9em;
-            margin-top: 5px;
-        }
-        .add-certification-form {
-            background: #334155;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #475569;
-        }
-        .add-certification-form h4 {
-            color: #38bdf8;
-            margin-top: 0;
-            margin-bottom: 15px;
-            font-size: 1.2em;
-        }
-        .certification-actions {
-            margin: 20px 0;
-            text-align: right;
-        }
-        .add-button {
-            display: inline-block;
-            background: #38bdf8;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-size: 1em;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border: 1px solid #0284c7;
-        }
-        .add-button:hover {
-            background: #0284c7;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        @media print {
+            * {
+                color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="dashboard-header">
-        <h2>Welcome <?php echo htmlspecialchars($mentee['name']); ?></h2>
-        <a href="logout.php" class="logout">Logout</a>
-    </div>
+    <?php include 'includes/sidebar.php'; ?>
 
-    <div class="dashboard-grid">
-        <?php
-        // Get mentor details
-        $sql = "SELECT m.name, m.email 
-                FROM mentors m
-                JOIN mentor_mentee_relationship mmr ON m.id = mmr.mentor_id
-                WHERE mmr.mentee_id = $mentee_id";
-        $mentor = $conn->query($sql)->fetch_assoc();
-        
-        if ($mentor) {
-            echo "<div class='mentor-info'>";
-            echo "<h3>Your Mentor</h3>";
-            echo "<p><strong>Name:</strong> " . htmlspecialchars($mentor['name']) . "</p>";
-            echo "<p><strong>Email:</strong> " . htmlspecialchars($mentor['email']) . "</p>";
-            echo "</div>";
-        } else {
-            echo "<div class='msg'>You haven't been assigned a mentor yet.</div>";
-        }
-        ?>
-
-        <div class="academic-section">
-            <h3>Academic Progress</h3>
-            <?php
-            $results = $conn->query("SELECT * FROM semester_results WHERE mentee_id=$mentee_id ORDER BY academic_year DESC, semester DESC");
-            if ($results->num_rows == 0) {
-                echo "<p>No academic records found.</p>";
-            } else {
-                while ($result = $results->fetch_assoc()) {
-                    echo "<div class='semester-result'>";
-                    echo "<h4>Semester {$result['semester']} ({$result['academic_year']})</h4>";
-                    echo "<p>GPA: {$result['gpa']}</p>";
-                    echo "</div>";
-                }
-            }
-            ?>
-        </div>
-
-        <div class="certifications-section">
-            <h3>Your Certifications</h3>
-            
-            <div class="certification-actions">
-                <a href="add_certification_mentee.php" class="add-button" target="_blank">Add New Certification</a>
+    <div class="main-content">
+        <div class="container">
+            <div class="dashboard-header">
+                <h2>Welcome, <?php echo htmlspecialchars($mentee['name']); ?>!</h2>
             </div>
 
-            <?php
-            $certs = $conn->query("SELECT * FROM certifications WHERE mentee_id=$mentee_id ORDER BY issue_date DESC");
-            if ($certs->num_rows == 0) {
-                echo "<p>No certifications uploaded yet.</p>";
-            } else {
-                while ($cert = $certs->fetch_assoc()) {
-                    echo "<div class='certification'>";
-                    echo "<div class='certification-header'>";
-                    echo "<strong>{$cert['certification_name']}</strong>";
-                    echo "</div>";
-                    echo "<p>Issuing Organization: {$cert['issuing_organization']}</p>";
-                    echo "<p>Issue Date: " . date('F j, Y', strtotime($cert['issue_date'])) . "</p>";
-                    if ($cert['expiry_date']) {
-                        echo "<p>Expiry Date: " . date('F j, Y', strtotime($cert['expiry_date'])) . "</p>";
-                    }
-                    echo "</div>";
-                }
-            }
-            ?>
-        </div>
-
-        <div class="activities-section">
-            <h3>Recent Activities</h3>
-            <div class="activity-grid">
+            <div class="dashboard-grid">
                 <?php
-                $acts = $conn->query("SELECT * FROM activities WHERE mentee_id=$mentee_id ORDER BY date DESC");
-                if ($acts->num_rows == 0) {
-                    echo "<p>No activities recorded yet.</p>";
+                if ($mentor) {
+                    echo "<div class='mentor-info'>";
+                    echo "<h3>Your Mentor</h3>";
+                    echo "<p><strong>Name:</strong> " . htmlspecialchars($mentor['name']) . "</p>";
+                    echo "<p><strong>Email:</strong> " . htmlspecialchars($mentor['email']) . "</p>";
+                    echo "</div>";
                 } else {
-                    while ($act = $acts->fetch_assoc()) {
-                        echo "<div class='activity'>";
-                        echo "<div class='activity-content'>";
-                        echo "<div class='activity-header'>";
-                        echo "<strong>{$act['activity_type']}</strong>";
-                        echo "</div>";
-                        echo "<p>{$act['description']}</p>";
-                        echo "<div class='activity-date'>" . date('F j, Y', strtotime($act['date'])) . "</div>";
-                        echo "</div>";
-                        echo "</div>";
-                    }
+                    echo "<div class='msg'>You haven't been assigned a mentor yet.</div>";
                 }
                 ?>
+
+                <div class="academic-section">
+                    <h3>Academic Progress</h3>
+                    <?php
+                    $results = $conn->query("SELECT * FROM detailed_marks WHERE mentee_id=$mentee_id ORDER BY academic_year DESC, semester DESC");
+                    if ($results->num_rows == 0) {
+                        echo "<p>No academic records found.</p>";
+                    } else {
+                        while ($result = $results->fetch_assoc()) {
+                            $overall = round(($result['first_ia_marks'] + $result['second_ia_marks'] + $result['final_exam_marks']) / 3, 2);
+                            
+                            echo "<div class='semester-result'>";
+                            echo "<h4>Semester {$result['semester']} ({$result['academic_year']})</h4>";
+                            echo "<p>First IA: {$result['first_ia_marks']}</p>";
+                            echo "<p>Second IA: {$result['second_ia_marks']}</p>";
+                            echo "<p>Final Exam: {$result['final_exam_marks']}</p>";
+                            echo "<p>Overall: {$overall}</p>";
+                            echo "<p>Project CGPA: {$result['project_cgpa']}</p>";
+                            echo "</div>";
+                        }
+                    }
+                    ?>
+                </div>
+
+                <div class="activities-section">
+                    <h3>Recent Activities</h3>
+                    <div class="activity-grid">
+                        <?php
+                        $acts = $conn->query("SELECT * FROM activities WHERE mentee_id=$mentee_id ORDER BY date DESC");
+                        if ($acts->num_rows == 0) {
+                            echo "<p>No activities recorded yet.</p>";
+                        } else {
+                            while ($act = $acts->fetch_assoc()) {
+                                echo "<div class='activity'>";
+                                echo "<div class='activity-content'>";
+                                echo "<div class='activity-header'>";
+                                echo "<strong>{$act['activity_type']}</strong>";
+                                echo "</div>";
+                                echo "<p>{$act['description']}</p>";
+                                echo "<div class='activity-date'>" . date('F j, Y', strtotime($act['date'])) . "</div>";
+                                echo "</div>";
+                                echo "</div>";
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
 </body>
 </html>

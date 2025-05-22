@@ -6,7 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = $_POST['name'];
     $email = $_POST['email'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $role = $_POST['role'];
+    $role = 'mentor'; // Only mentors can register
     $is_mentor_mentee = isset($_POST['is_mentor_mentee']) ? 1 : 0;
     
     // Check if email already exists in users table
@@ -29,19 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $user_stmt->bind_param("ssss", $name, $email, $password, $role);
             $user_stmt->execute();
             
-            if ($role == 'mentor') {
-                // Insert into mentors table
-                $mentor_sql = "INSERT INTO mentors (name, email, password, is_mentor_mentee) VALUES (?, ?, ?, ?)";
-                $mentor_stmt = $conn->prepare($mentor_sql);
-                $mentor_stmt->bind_param("sssi", $name, $email, $password, $is_mentor_mentee);
-                $mentor_stmt->execute();
-            } else {
-                // Insert into mentees table
-                $mentee_sql = "INSERT INTO mentees (name, email, password) VALUES (?, ?, ?)";
-                $mentee_stmt = $conn->prepare($mentee_sql);
-                $mentee_stmt->bind_param("sss", $name, $email, $password);
-                $mentee_stmt->execute();
-            }
+            // Insert into mentors table
+            $mentor_sql = "INSERT INTO mentors (user_id, is_mentor_mentee) VALUES (?, ?)";
+            $mentor_stmt = $conn->prepare($mentor_sql);
+            $mentor_stmt->bind_param("ii", $conn->insert_id, $is_mentor_mentee);
+            $mentor_stmt->execute();
             
             $conn->commit();
             $_SESSION['success'] = "Registration successful! Please login.";
@@ -58,12 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register</title>
+    <title>Register as Mentor</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="container">
-    <h2>Register</h2>
+    <h2>Register as Mentor</h2>
     
     <?php if (isset($_SESSION['error'])): ?>
         <div class="msg"><?php echo $_SESSION['error']; unset($_SESSION['error']); ?></div>
@@ -86,38 +78,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
         
         <div class="form-group">
-            <label for="role">Register as</label>
-            <select id="role" name="role" required onchange="toggleMentorMentee()">
-                <option value="">Select Role</option>
-                <option value="mentor">Mentor</option>
-                <option value="mentee">Mentee</option>
-            </select>
-        </div>
-        
-        <div class="form-group" id="mentorMenteeOption" style="display: none;">
             <label class="checkbox-label">
                 <input type="checkbox" name="is_mentor_mentee" id="is_mentor_mentee">
                 I am also a mentee and would like to have a mentor
             </label>
         </div>
         
-        <button type="submit" class="button">Register</button>
+        <button type="submit" class="button">Register as Mentor</button>
     </form>
     
     <p class="login-link">Already have an account? <a href="login.php">Login here</a></p>
 </div>
-
-<script>
-function toggleMentorMentee() {
-    var roleSelect = document.getElementById('role');
-    var mentorMenteeDiv = document.getElementById('mentorMenteeOption');
-    
-    if (roleSelect.value === 'mentor') {
-        mentorMenteeDiv.style.display = 'block';
-    } else {
-        mentorMenteeDiv.style.display = 'none';
-    }
-}
-</script>
 </body>
 </html>

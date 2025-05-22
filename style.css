@@ -1,16 +1,182 @@
+/* Common styles for all pages */
+body {
+    background: var(--background-dark) !important;
+    color: var(--text-light) !important;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    background: var(--container-bg) !important;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 20px auto;
+    width: 90%;
+    max-width: 1200px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--heading-color) !important;
+    margin-bottom: 15px;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: unset !important;
+}
+
+.section, .mentor-info, .academic-section, .certifications-section, .activities-section, .mentees-section {
+    background: var(--section-bg) !important;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    color: var(--text-light) !important;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.section-header h3, .mentor-info h3, .academic-section h3, .certifications-section h3, .activities-section h3, .mentees-section h3 {
+    color: var(--heading-color) !important;
+    font-size: 1.4em;
+    margin: 0 0 15px 0;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+/* Form elements */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+    background: var(--container-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-light) !important;
+    padding: 8px 12px;
+    border-radius: 4px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--heading-color) !important;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+}
+
+/* Buttons */
+.btn,
+button,
+input[type="submit"],
+input[type="button"],
+.button {
+    background-color: var(--button-bg) !important;
+    color: var(--text-light) !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 0.5rem 1.2rem !important;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+    box-shadow: none !important;
+}
+
+.btn:hover,
+button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+.button:hover {
+    background-color: var(--button-hover) !important;
+    color: var(--text-light) !important;
+}
+
+/* For outlined buttons, if any */
+.btn-outline-primary {
+    color: var(--heading-color) !important;
+    border: 2px solid var(--heading-color) !important;
+    background: transparent !important;
+}
+.btn-outline-primary:hover {
+    background: var(--heading-color) !important;
+    color: var(--text-light) !important;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background: var(--container-bg) !important;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th {
+    background: var(--section-bg) !important;
+    color: var(--heading-color) !important;
+    padding: 12px;
+    text-align: left;
+}
+
+td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color) !important;
+    color: var(--text-muted) !important;
+}
+
+tr:hover {
+    background: #2d3748 !important;
+}
+
+/* Links */
+a {
+    color: var(--heading-color) !important;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--button-hover) !important;
+    text-decoration: underline;
+}
+
+/* Print styles */
+@media print {
+    * {
+        color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
 :root {
-    --primary-color: #6C63FF;
-    --primary-hover: #5A52D5;
-    --background-dark: #1A1A1A;
-    --container-bg: #2D2D2D;
-    --text-light: #FFFFFF;
-    --text-muted: #B3B3B3;
-    --danger-color: #FF4B4B;
-    --success-color: #4CAF50;
-    --input-bg: #3D3D3D;
-    --border-color: #404040;
-    --gradient-start: #6C63FF;
-    --gradient-end: #4CAF50;
+    --background-dark: #0f172a;
+    --container-bg: #1e293b;
+    --section-bg: #334155;
+    --heading-color: #38bdf8;
+    --button-bg: #38bdf8;
+    --button-hover: #0ea5e9;
+    --text-light: #fff;
+    --text-muted: #e2e8f0;
+    --border-color: #475569;
 }
 
 /* Base styles */
@@ -934,4 +1100,85 @@ select:focus {
     background: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
+}
+
+/* Login page specific styles */
+.login-container {
+    background: #1e293b;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 400px;
+    margin: 2rem auto;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h1 {
+    color: #38bdf8;
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-header p {
+    color: #e2e8f0;
+    margin: 0;
+}
+
+.login-form .form-control {
+    background: #334155;
+    border: 1px solid #475569;
+    color: #ffffff;
+    padding: 0.75rem;
+    border-radius: 6px;
+}
+
+.login-form .form-control:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 0.2rem rgba(56,189,248,0.25);
+    background: #334155;
+    color: #ffffff;
+}
+
+.login-form .btn-primary {
+    background: #38bdf8;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 6px;
+    width: 100%;
+    font-weight: 500;
+    margin-top: 1rem;
+}
+
+.login-form .btn-primary:hover {
+    background: #0284c7;
+}
+
+.register-link {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: #e2e8f0;
+}
+
+.register-link a {
+    color: #38bdf8;
+    text-decoration: none;
+}
+
+.register-link a:hover {
+    text-decoration: underline;
+}
+
+/* Login page body */
+body.login-page {
+    background: #0f172a;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
 }
