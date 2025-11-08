@@ -8,61 +8,95 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mentor') {
     exit();
 }
 
+$error = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $mobile_number = $_POST['mobile_number'];
-    $parent_mobile_number = $_POST['parent_mobile_number'];
-    $usn = $_POST['usn'];
-    $semester = $_POST['semester'];
-    $department = $_POST['department'];
-    $password = password_hash($usn, PASSWORD_DEFAULT); // Use USN as initial password
-    $mentor_id = $_SESSION['user_id'];
+    // Validate all required fields are present
+    if (!isset($_POST['name']) || !isset($_POST['email']) || !isset($_POST['mobile_number']) || 
+        !isset($_POST['parent_mobile_number']) || !isset($_POST['usn']) || 
+        !isset($_POST['semester']) || !isset($_POST['department'])) {
+        $error = "All fields are required!";
+    } else {
+        $name = trim($_POST['name']);
+        $email = trim($_POST['email']);
+        $mobile_number = trim($_POST['mobile_number']);
+        $parent_mobile_number = trim($_POST['parent_mobile_number']);
+        $usn = trim($_POST['usn']);
+        $semester = intval($_POST['semester']);
+        $department = trim($_POST['department']);
+        $password = password_hash($usn, PASSWORD_DEFAULT); // Use USN as initial password
+        $mentor_id = $_SESSION['user_id'];
 
-    // Start transaction
-    $conn->begin_transaction();
+        // Start transaction
+        $conn->begin_transaction();
 
-    try {
-        // First insert into users table
-        $user_sql = "INSERT INTO users (name, email, password, role, mobile_number, parent_mobile_number) 
-                    VALUES (?, ?, ?, 'mentee', ?, ?)";
-        $user_stmt = $conn->prepare($user_sql);
-        $user_stmt->bind_param("sssss", $name, $email, $password, $mobile_number, $parent_mobile_number);
-        $user_stmt->execute();
-        $user_id = $conn->insert_id;
+        try {
+            // First insert into users table
+            $user_sql = "INSERT INTO users (name, email, password, role, mobile_number, parent_mobile_number) 
+                        VALUES (?, ?, ?, 'mentee', ?, ?)";
+            $user_stmt = $conn->prepare($user_sql);
+            if (!$user_stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            $user_stmt->bind_param("sssss", $name, $email, $password, $mobile_number, $parent_mobile_number);
+            if (!$user_stmt->execute()) {
+                // Check if duplicate email error
+                if (strpos($user_stmt->error, 'Duplicate entry') !== false && strpos($user_stmt->error, 'email') !== false) {
+                    throw new Exception("This email address is already registered. Please use a different email.");
+                }
+                throw new Exception("Execute failed: " . $user_stmt->error);
+            }
+            $user_id = $conn->insert_id;
 
-        // Then insert into mentees table with new fields
-        $mentee_sql = "INSERT INTO mentees (user_id, usn, semester, department) VALUES (?, ?, ?, ?)";
-        $mentee_stmt = $conn->prepare($mentee_sql);
-        $mentee_stmt->bind_param("isis", $user_id, $usn, $semester, $department);
-        $mentee_stmt->execute();
-        $mentee_id = $conn->insert_id;
+            // Then insert into mentees table with new fields
+            $mentee_sql = "INSERT INTO mentees (user_id, usn, semester, department) VALUES (?, ?, ?, ?)";
+            $mentee_stmt = $conn->prepare($mentee_sql);
+            if (!$mentee_stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            $mentee_stmt->bind_param("isis", $user_id, $usn, $semester, $department);
+            if (!$mentee_stmt->execute()) {
+                // Check if duplicate USN error
+                if (strpos($mentee_stmt->error, 'Duplicate entry') !== false && strpos($mentee_stmt->error, 'usn') !== false) {
+                    throw new Exception("This USN is already registered. Please check the USN.");
+                }
+                throw new Exception("Execute failed: " . $mentee_stmt->error);
+            }
+            $mentee_id = $conn->insert_id;
 
-        // Create mentor-mentee relationship
-        $relationship_sql = "INSERT INTO mentor_mentee_relationship (mentor_id, mentee_id) VALUES (?, ?)";
-        $relationship_stmt = $conn->prepare($relationship_sql);
-        $relationship_stmt->bind_param("ii", $mentor_id, $mentee_id);
-        $relationship_stmt->execute();
+            // Create mentor-mentee relationship
+            $relationship_sql = "INSERT INTO mentor_mentee_relationship (mentor_id, mentee_id) VALUES (?, ?)";
+            $relationship_stmt = $conn->prepare($relationship_sql);
+            if (!$relationship_stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+            $relationship_stmt->bind_param("ii", $mentor_id, $mentee_id);
+            if (!$relationship_stmt->execute()) {
+                throw new Exception("Execute failed: " . $relationship_stmt->error);
+            }
 
-        // Commit transaction
-        $conn->commit();
+            // Commit transaction
+            $conn->commit();
 
-        // Redirect to mentee list with success message
-        $_SESSION['success_message'] = "Mentee added successfully! Initial password is their USN.";
-        header('Location: mentee_list.php');
-        exit();
-    } catch (Exception $e) {
-        // Rollback transaction on error
-        $conn->rollback();
-        $_SESSION['error'] = "Error adding mentee: " . $e->getMessage();
-        header('Location: mentee_list.php');
-        exit();
+            // Redirect to mentee list with success message
+            $_SESSION['success_message'] = "Mentee added successfully! Initial password is their USN.";
+            header('Location: mentee_list.php');
+            exit();
+        } catch (Exception $e) {
+            // Rollback transaction on error
+            $conn->rollback();
+            $error = "Error adding mentee: " . $e->getMessage();
+        }
     }
-} else {
-    // If not POST request, redirect to mentee list
-    header('Location: mentee_list.php');
-    exit();
 }
+
+// If we reach here (not POST or has error), redirect to mentee_list
+// The form should be filled in the modal on mentee_list.php
+if (isset($error)) {
+    $_SESSION['error'] = $error;
+}
+header('Location: mentee_list.php');
+exit();
 
 ?>
 

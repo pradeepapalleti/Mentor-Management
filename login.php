@@ -8,16 +8,22 @@ header('Content-Type: text/html; charset=utf-8');
 error_log("Session data at start: " . print_r($_SESSION, true));
 error_log("Session ID: " . session_id());
 
-include 'db.php';
+include 'config/db.php';
 
 // If user is already logged in, redirect to appropriate dashboard
 if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
     error_log("User already logged in. Redirecting to dashboard.");
     if ($_SESSION['role'] === 'mentor') {
-        header("Location: mentor_dashboard.php");
+        header("Location: pages/mentor_dashboard.php");
     } else {
-        header("Location: mentee_dashboard.php");
+        header("Location: pages/mentee_dashboard.php");
     }
+    exit();
+}
+
+// If accessed directly without POST, redirect to login form
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: pages/login_form.php");
     exit();
 }
 
@@ -74,9 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $details = $details_stmt->get_result()->fetch_assoc();
                 
                 if ($details) {
-                    $_SESSION['user_id'] = $details['id'];
-                    $_SESSION['name'] = $details['name'];
-                    $_SESSION['email'] = $details['email'];
+                    // Most pages expect session user_id to be the mentor/mentee profile id (mentors.id / mentees.id).
+                    // Keep that behavior for backward compatibility and also store canonical users.id as `users_id`.
+                    $_SESSION['user_id'] = $details['id']; // mentor record id (used across the app)
+                    $_SESSION['users_id'] = $user['id'];   // canonical users.id
+                    $_SESSION['profile_id'] = $details['id']; // mentor record id (alias)
+                    $_SESSION['name'] = $user['name'];
+                    $_SESSION['email'] = $user['email'];
                     $_SESSION['role'] = 'mentor';
                     
                     error_log("Mentor login successful for: " . $email);
@@ -84,11 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     // Ensure session is written before redirect
                     session_write_close();
-                    header("Location: mentor_dashboard.php");
+                    header("Location: pages/mentor_dashboard.php");
                     exit();
                 } else {
                     error_log("Mentor details not found for: " . $email);
                     $_SESSION['error'] = "Mentor details not found!";
+                    header("Location: pages/login_form.php");
+                    exit();
                 }
             } else {
                 $details_sql = "SELECT m.*, u.name, u.email 
@@ -110,9 +122,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $details = $details_stmt->get_result()->fetch_assoc();
                 
                 if ($details) {
-                    $_SESSION['user_id'] = $details['id'];
-                    $_SESSION['name'] = $details['name'];
-                    $_SESSION['email'] = $details['email'];
+                    // Keep legacy behavior: session user_id is mentee.id
+                    $_SESSION['user_id'] = $details['id']; // mentee record id
+                    $_SESSION['users_id'] = $user['id'];   // canonical users.id
+                    $_SESSION['profile_id'] = $details['id']; // mentee record id (alias)
+                    $_SESSION['name'] = $user['name'];
+                    $_SESSION['email'] = $user['email'];
                     $_SESSION['role'] = 'mentee';
                     
                     error_log("Mentee login successful for: " . $email);
@@ -120,133 +135,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     // Ensure session is written before redirect
                     session_write_close();
-                    header("Location: mentee_dashboard.php");
+                    header("Location: pages/mentee_dashboard.php");
                     exit();
                 } else {
                     error_log("Mentee details not found for: " . $email);
                     $_SESSION['error'] = "Mentee details not found!";
+                    header("Location: pages/login_form.php");
+                    exit();
                 }
             }
         } else {
             error_log("Invalid password for user: " . $email);
-            $_SESSION['error'] = "Invalid password!";
+            $_SESSION['error'] = "Invalid email or password!";
+            header("Location: pages/login_form.php");
+            exit();
         }
     } else {
         error_log("No user found with email: " . $email);
         $_SESSION['error'] = "Invalid email or password!";
+        header("Location: pages/login_form.php");
+        exit();
     }
 }
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Mentor Management System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .login-container {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
-        }
-        .login-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .login-header h1 {
-            color: #1e293b;
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
-        }
-        .login-header p {
-            color: #64748b;
-            margin: 0;
-        }
-        .form-control {
-            padding: 0.75rem;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-        }
-        .form-control:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 0 0.2rem rgba(56,189,248,0.25);
-        }
-        .btn-primary {
-            background: #38bdf8;
-            border: none;
-            padding: 0.75rem;
-            border-radius: 6px;
-            width: 100%;
-            font-weight: 500;
-            margin-top: 1rem;
-        }
-        .btn-primary:hover {
-            background: #0ea5e9;
-        }
-        .register-link {
-            text-align: center;
-            margin-top: 1.5rem;
-            color: #64748b;
-        }
-        .register-link a {
-            color: #38bdf8;
-            text-decoration: none;
-        }
-        .register-link a:hover {
-            text-decoration: underline;
-        }
-        .alert {
-            margin-bottom: 1rem;
-            border-radius: 6px;
-        }
-    </style>
-</head>
-<body class="login-page">
-    <div class="login-container">
-        <div class="login-header">
-            <h1>Welcome Back</h1>
-            <p>Please login to your account</p>
-        </div>
-
-        <?php if (isset($_SESSION['error'])): ?>
-            <div class="alert alert-danger">
-                <?php 
-                echo $_SESSION['error'];
-                unset($_SESSION['error']);
-                ?>
-            </div>
-        <?php endif; ?>
-
-        <form method="POST" action="login.php">
-            <div class="mb-3">
-                <label for="email" class="form-label">Email address</label>
-                <input type="email" class="form-control" id="email" name="email" required>
-            </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Login</button>
-        </form>
-
-        <div class="register-link">
-            Don't have an account? <a href="register.php">Register here</a>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+// If we reach here without POST, redirect to login form
+header("Location: pages/login_form.php");
+exit();

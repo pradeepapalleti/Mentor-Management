@@ -1,0 +1,104 @@
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+*.code-workspace
+
+# PHP
+*.log
+*.cache
+vendor/
+composer.lock
+.phpunit.result.cache
+
+# Database Configuration (Security)
+config/db.php
+# Only ignore if it contains actual credentials
+# Commit a template version: config/db.example.php
+
+# Uploaded Files (User Content)
+uploads/*
+!uploads/.gitkeep
+uploads/certificates/*
+!uploads/certificates/.gitkeep
+
+# Session Files
+sessions/
+tmp/
+temp/
+
+# Environment Files
+.env
+.env.local
+.env.*.local
+
+# Build and Cache
+cache/
+logs/
+*.log
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*.orig
+*_backup
+*_old
+
+# Database Backups
+*.sql.gz
+*.sql.zip
+backup/*.sql
+
+# Setup Scripts (After Initial Setup)
+setup/setup_database.php
+setup/verify_db.php
+setup/check_db.php
+setup/check_columns.php
+setup/fix_marks.php
+setup/add_password_column.php
+
+# Node Modules (if using npm)
+node_modules/
+package-lock.json
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+$RECYCLE.BIN/
+
+# Linux
+.directory
+
+# Compressed Files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Sensitive Information
+credentials.txt
+passwords.txt
+api_keys.txt

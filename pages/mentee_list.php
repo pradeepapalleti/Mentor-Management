@@ -148,19 +148,41 @@ $result = $stmt->get_result();
         .modal-footer {
             border-top: 1px solid #475569;
         }
-        .form-control {
+        .form-control, .form-select {
             background: #334155;
             border: 1px solid #475569;
             color: #ffffff;
         }
-        .form-control:focus {
+        .form-control:focus, .form-select:focus {
             background: #334155;
             border-color: #38bdf8;
             color: #ffffff;
             box-shadow: 0 0 0 0.2rem rgba(56,189,248,0.25);
         }
+        .form-control option {
+            background: #334155;
+            color: #ffffff;
+        }
         .form-label {
             color: #e2e8f0;
+        }
+        .alert-info {
+            background: rgba(56,189,248,0.1);
+            border: 1px solid rgba(56,189,248,0.3);
+            color: #38bdf8;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .alert-success {
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            color: #10b981;
+        }
+        .alert-danger {
+            background: rgba(248,113,113,0.1);
+            border: 1px solid rgba(248,113,113,0.3);
+            color: #f87171;
         }
     </style>
 </head>
@@ -169,6 +191,22 @@ $result = $stmt->get_result();
 
     <div class="main-content">
         <div class="container">
+            <?php if (isset($_SESSION['success_message'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_SESSION['success_message']); ?>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+                </div>
+                <?php unset($_SESSION['success_message']); ?>
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($_SESSION['error']); ?>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+                </div>
+                <?php unset($_SESSION['error']); ?>
+            <?php endif; ?>
+
             <div class="dashboard-header">
                 <h2>My Mentees</h2>
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMenteeModal">
@@ -224,25 +262,49 @@ $result = $stmt->get_result();
                     <form action="add_mentee.php" method="POST">
                         <div class="mb-3">
                             <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
+                            <input type="text" class="form-control" id="name" name="name" required placeholder="Enter mentee's full name">
                         </div>
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            <input type="email" class="form-control" id="email" name="email" required placeholder="Enter mentee's email address">
+                        </div>
+                        <div class="mb-3">
+                            <label for="usn" class="form-label">USN</label>
+                            <input type="text" class="form-control" id="usn" name="usn" required placeholder="e.g., 1MS20CS001" pattern="[1-9][A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{3}" title="Please enter a valid USN (e.g., 1MS20CS001)">
+                        </div>
+                        <div class="mb-3">
+                            <label for="semester" class="form-label">Semester</label>
+                            <select class="form-control" id="semester" name="semester" required>
+                                <option value="">Select Semester</option>
+                                <?php for($i = 1; $i <= 8; $i++): ?>
+                                    <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="department" class="form-label">Department</label>
+                            <select class="form-control" id="department" name="department" required>
+                                <option value="">Select Department</option>
+                                <option value="Computer Science">Computer Science</option>
+                                <option value="Information Science">Information Science</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Electrical">Electrical</option>
+                                <option value="Mechanical">Mechanical</option>
+                                <option value="Civil">Civil</option>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label for="mobile_number" class="form-label">Mobile Number</label>
-                            <input type="tel" class="form-control" id="mobile_number" name="mobile_number" required>
+                            <input type="tel" class="form-control" id="mobile_number" name="mobile_number" required placeholder="Enter mentee's mobile number">
                         </div>
                         <div class="mb-3">
                             <label for="parent_mobile_number" class="form-label">Parent's Mobile Number</label>
-                            <input type="tel" class="form-control" id="parent_mobile_number" name="parent_mobile_number" required>
+                            <input type="tel" class="form-control" id="parent_mobile_number" name="parent_mobile_number" required placeholder="Enter parent's mobile number">
                         </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> Initial password will be the student's USN
                         </div>
-                        <button type="submit" class="btn btn-primary">Add Mentee</button>
+                        <button type="submit" class="btn btn-primary w-100">Add Mentee</button>
                     </form>
                 </div>
             </div>

@@ -28,19 +28,30 @@ if (isset($_GET['mentee_id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mentee_id = $_POST['mentee_id'];
     $feedback_text = $_POST['feedback_text'];
-    $date = date('Y-m-d');
+    $date = isset($_POST['date']) ? $_POST['date'] : date('Y-m-d');
+    $return_url = isset($_POST['return_url']) ? $_POST['return_url'] : 'feedback.php';
+    
+    // Get mentor's profile id (mentors.id) from user_id
+    $mentor_query = "SELECT id FROM mentors WHERE user_id = ?";
+    $stmt = $conn->prepare($mentor_query);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $mentor_result = $stmt->get_result()->fetch_assoc();
+    $mentor_id = $mentor_result['id'];
     
     $sql = "INSERT INTO feedback (mentee_id, mentor_id, feedback_text, date) 
             VALUES (?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iiss", $mentee_id, $user_id, $feedback_text, $date);
+    $stmt->bind_param("iiss", $mentee_id, $mentor_id, $feedback_text, $date);
     
     if ($stmt->execute()) {
         $_SESSION['success_message'] = "Feedback submitted successfully!";
-        header('Location: feedback.php');
+        header('Location: ' . $return_url);
         exit();
     } else {
-        $error = "Error submitting feedback: " . $conn->error;
+        $_SESSION['error_message'] = "Error submitting feedback: " . $conn->error;
+        header('Location: ' . $return_url);
+        exit();
     }
 }
 

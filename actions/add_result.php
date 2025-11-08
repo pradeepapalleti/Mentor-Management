@@ -223,7 +223,7 @@ if ($result->num_rows === 0) {
 </head>
 <body>
 <div class="container">
-    <a href="mentor_dashboard.php" class="back-link">← Back to Dashboard</a>
+    <a href="marks.php?mentee_id=<?php echo htmlspecialchars($mentee_id); ?>" class="back-link">← Back to Marks</a>
     
     <div class="form">
         <h2>Add Semester Result</h2>
@@ -260,7 +260,6 @@ if ($result->num_rows === 0) {
                 <?php for($i = 0; $i < 5; $i++): ?>
                 <div class="subject-container">
                     <div class="subject-header">
-                        <div class="subject-title">Subject <?php echo $i + 1; ?></div>
                         <?php if($i > 0): ?>
                         <button type="button" class="remove-subject" onclick="removeSubject(this)">Remove</button>
                         <?php endif; ?>
@@ -305,6 +304,14 @@ if ($result->num_rows === 0) {
                             </div>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Project:</label>
+                                <input type="number" name="subjects[<?php echo $i; ?>][project]" step="0.01" min="0" max="100" required>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <?php endfor; ?>
             </div>
@@ -324,7 +331,6 @@ function addSubject() {
     newSubject.className = 'subject-container';
     newSubject.innerHTML = `
         <div class="subject-header">
-            <div class="subject-title">Subject ${subjectCount + 1}</div>
             <button type="button" class="remove-subject" onclick="removeSubject(this)">Remove</button>
         </div>
         <div class="row">
@@ -364,6 +370,14 @@ function addSubject() {
                 <div class="form-group">
                     <label>Final Exam:</label>
                     <input type="number" name="subjects[${subjectCount}][final_exam]" step="0.01" min="0" max="100" required>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label>Project:</label>
+                    <input type="number" name="subjects[${subjectCount}][project]" step="0.01" min="0" max="100" required>
                 </div>
             </div>
         </div>

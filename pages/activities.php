@@ -13,10 +13,19 @@ $user_role = $_SESSION['role'];
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $mentee_id = $_POST['mentee_id'];
+    // For mentees, use their own ID; for mentors, use the selected mentee_id
+    if ($user_role === 'mentee') {
+        $mentee_id = $user_id;
+    } else {
+        $mentee_id = $_POST['mentee_id'];
+    }
+    
     $activity_type = $_POST['activity_type'];
     $description = $_POST['description'];
     $date = $_POST['date'];
+    
+    // Add logging to verify the data being inserted
+    error_log("Adding activity: mentee_id=$mentee_id, type=$activity_type, role=$user_role");
     
     $sql = "INSERT INTO activities (mentee_id, activity_type, description, date) 
             VALUES (?, ?, ?, ?)";
@@ -28,22 +37,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: activities.php');
         exit();
     } else {
+        error_log("Error adding activity: " . $conn->error);
         $error = "Error adding activity: " . $conn->error;
     }
 }
 
-// Get activities
-$activities_query = "SELECT a.*, u.name as mentee_name 
-                    FROM activities a 
-                    JOIN mentees m ON a.mentee_id = m.id 
-                    JOIN users u ON m.user_id = u.id 
-                    JOIN mentor_mentee_relationship mmr ON m.id = mmr.mentee_id 
-                    WHERE mmr.mentor_id = ? 
-                    ORDER BY a.date DESC";
+// Get activities based on role
+if ($user_role === 'mentor') {
+    $activities_query = "SELECT a.*, u.name as mentee_name 
+                        FROM activities a 
+                        JOIN mentees m ON a.mentee_id = m.id 
+                        JOIN users u ON m.user_id = u.id 
+                        JOIN mentor_mentee_relationship mmr ON m.id = mmr.mentee_id 
+                        WHERE mmr.mentor_id = ? 
+                        ORDER BY a.date DESC";
+    error_log("Mentor viewing activities for mentor_id: $user_id");
+} else {
+    // For mentees, show only their own activities
+    $activities_query = "SELECT a.*, u.name as mentee_name 
+                        FROM activities a 
+                        JOIN mentees m ON a.mentee_id = m.id 
+                        JOIN users u ON m.user_id = u.id 
+                        WHERE m.id = ? 
+                        ORDER BY a.date DESC";
+    error_log("Mentee viewing their own activities for mentee_id: $user_id");
+}
 $stmt = $conn->prepare($activities_query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $activities = $stmt->get_result();
+error_log("Activities found: " . $activities->num_rows);
 ?>
 
 <!DOCTYPE html>
@@ -139,6 +162,7 @@ $activities = $stmt->get_result();
                             </div>
                             <form method="POST">
                                 <div class="modal-body">
+                                    <?php if ($user_role === 'mentor'): ?>
                                     <div class="mb-3">
                                         <label class="form-label">Mentee</label>
                                         <select name="mentee_id" class="form-control" required>
@@ -159,6 +183,7 @@ $activities = $stmt->get_result();
                                             ?>
                                         </select>
                                     </div>
+                                    <?php endif; ?>
                                     
                                     <div class="mb-3">
                                         <label class="form-label">Activity Type</label>
@@ -197,7 +222,9 @@ $activities = $stmt->get_result();
                         <thead>
                             <tr>
                                 <th>Date</th>
+                                <?php if ($user_role === 'mentor'): ?>
                                 <th>Mentee</th>
+                                <?php endif; ?>
                                 <th>Activity Type</th>
                                 <th>Description</th>
                             </tr>
@@ -206,7 +233,9 @@ $activities = $stmt->get_result();
                             <?php while ($activity = $activities->fetch_assoc()): ?>
                                 <tr>
                                     <td><?php echo date('M d, Y', strtotime($activity['date'])); ?></td>
+                                    <?php if ($user_role === 'mentor'): ?>
                                     <td><?php echo htmlspecialchars($activity['mentee_name']); ?></td>
+                                    <?php endif; ?>
                                     <td><?php echo htmlspecialchars($activity['activity_type']); ?></td>
                                     <td><?php echo nl2br(htmlspecialchars($activity['description'])); ?></td>
                                 </tr>

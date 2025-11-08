@@ -31,6 +31,18 @@ $stmt = $conn->prepare($marks_query);
 $stmt->bind_param("i", $mentee_id);
 $stmt->execute();
 $marks = $stmt->get_result();
+
+// Get feedback for the mentee
+$feedback_query = "SELECT f.*, m.user_id as mentor_user_id, u.name as mentor_name 
+                   FROM feedback f 
+                   JOIN mentors m ON f.mentor_id = m.id 
+                   JOIN users u ON m.user_id = u.id 
+                   WHERE f.mentee_id = ? 
+                   ORDER BY f.date DESC";
+$stmt = $conn->prepare($feedback_query);
+$stmt->bind_param("i", $mentee_id);
+$stmt->execute();
+$feedbacks = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
@@ -114,6 +126,22 @@ $marks = $stmt->get_result();
 
     <div class="main-content">
         <div class="container">
+            <?php if (isset($_SESSION['success_message'])): ?>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_SESSION['success_message']); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php unset($_SESSION['success_message']); ?>
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION['error_message'])): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($_SESSION['error_message']); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php unset($_SESSION['error_message']); ?>
+            <?php endif; ?>
+
             <div class="section">
                 <div class="section-header">
                     <h3>Mentee Details</h3>
@@ -131,9 +159,9 @@ $marks = $stmt->get_result();
             <div class="section">
                 <div class="section-header">
                     <h3>Academic Performance</h3>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMarksModal">
+                    <a href="add_result.php?mentee_id=<?php echo $mentee_id; ?>" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Add New Semester Marks
-                    </button>
+                    </a>
                 </div>
 
                 <?php while ($semester_marks = $marks->fetch_assoc()): ?>
@@ -176,48 +204,71 @@ $marks = $stmt->get_result();
                 </div>
                 <?php endwhile; ?>
             </div>
+
+            <!-- Feedback Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>Feedback History</h3>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFeedbackModal">
+                        <i class="fas fa-plus"></i> Add Feedback
+                    </button>
+                </div>
+
+                <?php if ($feedbacks->num_rows > 0): ?>
+                    <?php while ($feedback = $feedbacks->fetch_assoc()): ?>
+                        <div class="feedback-card mb-3" style="background: #475569; padding: 15px; border-radius: 8px; border-left: 4px solid #38bdf8;">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <strong style="color: #38bdf8;">
+                                        <i class="fas fa-user"></i> <?php echo htmlspecialchars($feedback['mentor_name']); ?>
+                                    </strong>
+                                    <span style="color: #94a3b8; margin-left: 15px;">
+                                        <i class="fas fa-calendar"></i> <?php echo date('M d, Y', strtotime($feedback['date'])); ?>
+                                    </span>
+                                </div>
+                            </div>
+                            <p style="color: #e2e8f0; margin: 0;">
+                                <?php echo nl2br(htmlspecialchars($feedback['feedback_text'])); ?>
+                            </p>
+                        </div>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div class="alert alert-info" style="background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;">
+                        <i class="fas fa-info-circle"></i> No feedback has been given yet.
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
-    <!-- Add Marks Modal -->
-    <div class="modal fade" id="addMarksModal" tabindex="-1">
+    <!-- Add Feedback Modal -->
+    <div class="modal fade" id="addFeedbackModal" tabindex="-1">
         <div class="modal-dialog">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Semester Marks</h5>
+            <div class="modal-content" style="background: #1e293b; color: #ffffff;">
+                <div class="modal-header" style="border-bottom: 1px solid #475569;">
+                    <h5 class="modal-title">Add Feedback</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form method="POST" action="marks.php">
+                <form method="POST" action="feedback.php">
                     <div class="modal-body">
                         <input type="hidden" name="mentee_id" value="<?php echo $mentee_id; ?>">
+                        <input type="hidden" name="return_url" value="mentee_details.php?id=<?php echo $mentee_id; ?>">
                         <div class="mb-3">
-                            <label class="form-label">Semester</label>
-                            <input type="text" name="semester" class="form-control" required>
+                            <label class="form-label" style="color: #e2e8f0;">Feedback</label>
+                            <textarea name="feedback_text" class="form-control" rows="5" required 
+                                      style="background: #334155; border: 1px solid #475569; color: #ffffff;"
+                                      placeholder="Enter your feedback here..."></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Academic Year</label>
-                            <input type="text" name="academic_year" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">First IA Marks</label>
-                            <input type="number" step="0.01" name="first_ia_marks" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Second IA Marks</label>
-                            <input type="number" step="0.01" name="second_ia_marks" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Final Exam Marks</label>
-                            <input type="number" step="0.01" name="final_exam_marks" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Project CGPA</label>
-                            <input type="number" step="0.01" name="project_cgpa" class="form-control" required>
+                            <label class="form-label" style="color: #e2e8f0;">Date</label>
+                            <input type="date" name="date" class="form-control" required 
+                                   value="<?php echo date('Y-m-d'); ?>"
+                                   style="background: #334155; border: 1px solid #475569; color: #ffffff;">
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer" style="border-top: 1px solid #475569;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Save Marks</button>
+                        <button type="submit" class="btn btn-primary">Save Feedback</button>
                     </div>
                 </form>
             </div>
@@ -227,8 +278,8 @@ $marks = $stmt->get_result();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function editMarks(marksId) {
-            // Implement edit functionality
-            window.location.href = `marks.php?mentee_id=<?php echo $mentee_id; ?>&edit=${marksId}`;
+            // Redirect to add_result page with edit parameter
+            window.location.href = `add_result.php?mentee_id=<?php echo $mentee_id; ?>&edit=${marksId}`;
         }
     </script>
 </body>

@@ -1,0 +1,20 @@
+# Enable error reporting for development
+# Comment these out in production
+php_flag display_errors on
+php_value error_reporting E_ALL
+
+# Set default index files
+DirectoryIndex index.html index.php
+
+# Prevent directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "^(README\.md|\.gitignore|composer\.json|composer\.lock|\.env)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect config and setup directories
+RedirectMatch 403 ^/config/
+RedirectMatch 403 ^/setup/

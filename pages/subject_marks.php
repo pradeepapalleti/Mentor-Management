@@ -13,43 +13,54 @@ $mentee_id = isset($_GET['mentee_id']) ? $_GET['mentee_id'] : $user_id;
 
 // Handle form submission for adding/updating marks
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_role === 'mentor') {
-    $semester_id = $_POST['semester_id'];
-    $subject_id = $_POST['subject_id'];
-    $first_ia = $_POST['first_ia_marks'];
-    $second_ia = $_POST['second_ia_marks'];
-    $final_exam = $_POST['final_exam_marks'];
-    $project_marks = $_POST['project_marks'];
+    $semester_id = isset($_POST['semester_id']) ? intval($_POST['semester_id']) : 0;
+    $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
+    $first_ia = isset($_POST['first_ia_marks']) ? floatval($_POST['first_ia_marks']) : 0;
+    $second_ia = isset($_POST['second_ia_marks']) ? floatval($_POST['second_ia_marks']) : 0;
+    $final_exam = isset($_POST['final_exam_marks']) ? floatval($_POST['final_exam_marks']) : 0;
+    $project_marks = isset($_POST['project_marks']) ? floatval($_POST['project_marks']) : 0;
 
-    // Check if marks already exist for this subject
-    $check_query = "SELECT id FROM subject_marks WHERE subject_id = ?";
-    $stmt = $conn->prepare($check_query);
-    $stmt->bind_param("i", $subject_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    if ($subject_id > 0) {
+        // Check if marks already exist for this subject
+        $check_query = "SELECT id FROM subject_marks WHERE subject_id = ?";
+        $stmt = $conn->prepare($check_query);
+        $stmt->bind_param("i", $subject_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-    if ($result->num_rows > 0) {
-        // Update existing marks
-        $query = "UPDATE subject_marks SET 
-                  first_ia_marks = ?, 
-                  second_ia_marks = ?, 
-                  final_exam_marks = ?, 
-                  project_marks = ? 
-                  WHERE subject_id = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("ddddi", $first_ia, $second_ia, $final_exam, $project_marks, $subject_id);
+        if ($result->num_rows > 0) {
+            // Update existing marks
+            $query = "UPDATE subject_marks SET 
+                      first_ia_marks = ?, 
+                      second_ia_marks = ?, 
+                      final_exam_marks = ?, 
+                      project_marks = ? 
+                      WHERE subject_id = ?";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("ddddi", $first_ia, $second_ia, $final_exam, $project_marks, $subject_id);
+            
+            if ($stmt->execute()) {
+                $_SESSION['success_message'] = "Marks updated successfully!";
+            } else {
+                $_SESSION['error_message'] = "Error updating marks: " . $stmt->error;
+            }
+        } else {
+            // Insert new marks
+            $query = "INSERT INTO subject_marks (subject_id, first_ia_marks, second_ia_marks, final_exam_marks, project_marks) 
+                      VALUES (?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("idddd", $subject_id, $first_ia, $second_ia, $final_exam, $project_marks);
+            
+            if ($stmt->execute()) {
+                $_SESSION['success_message'] = "Marks added successfully!";
+            } else {
+                $_SESSION['error_message'] = "Error adding marks: " . $stmt->error;
+            }
+        }
     } else {
-        // Insert new marks
-        $query = "INSERT INTO subject_marks (subject_id, first_ia_marks, second_ia_marks, final_exam_marks, project_marks) 
-                  VALUES (?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("idddd", $subject_id, $first_ia, $second_ia, $final_exam, $project_marks);
+        $_SESSION['error_message'] = "Invalid subject ID!";
     }
-
-    if ($stmt->execute()) {
-        $_SESSION['success_message'] = "Marks updated successfully!";
-    } else {
-        $_SESSION['error_message'] = "Error updating marks: " . $conn->error;
-    }
+    
     header("Location: subject_marks.php?mentee_id=" . $mentee_id);
     exit();
 }
@@ -205,7 +216,9 @@ $semesters = $stmt->get_result();
                             <tbody>
                                 <?php
                                 // Get subjects for this semester
-                                $subjects_query = "SELECT s.*, sm.* 
+                                $subjects_query = "SELECT s.id as subject_id, s.subject_code, s.subject_name, s.credits,
+                                                 sm.id as marks_id, sm.first_ia_marks, sm.second_ia_marks, 
+                                                 sm.final_exam_marks, sm.project_marks
                                                  FROM subjects s 
                                                  LEFT JOIN subject_marks sm ON s.id = sm.subject_id 
                                                  WHERE s.semester_id = ?";
@@ -218,7 +231,13 @@ $semesters = $stmt->get_result();
                                 $weighted_sum = 0;
 
                                 while ($subject = $subjects->fetch_assoc()):
-                                    $total = ($subject['first_ia_marks'] + $subject['second_ia_marks'] + $subject['final_exam_marks']) / 3;
+                                    // Handle NULL values with defaults
+                                    $first_ia = $subject['first_ia_marks'] ?? 0;
+                                    $second_ia = $subject['second_ia_marks'] ?? 0;
+                                    $final_exam = $subject['final_exam_marks'] ?? 0;
+                                    $project = $subject['project_marks'] ?? 0;
+                                    
+                                    $total = ($first_ia + $second_ia + $final_exam) / 3;
                                     $total_credits += $subject['credits'];
                                     $weighted_sum += ($total * $subject['credits']);
                                 ?>
@@ -226,21 +245,22 @@ $semesters = $stmt->get_result();
                                         <td><?php echo htmlspecialchars($subject['subject_code']); ?></td>
                                         <td><?php echo htmlspecialchars($subject['subject_name']); ?></td>
                                         <td><?php echo $subject['credits']; ?></td>
-                                        <td><?php echo number_format($subject['first_ia_marks'], 2); ?></td>
-                                        <td><?php echo number_format($subject['second_ia_marks'], 2); ?></td>
-                                        <td><?php echo number_format($subject['final_exam_marks'], 2); ?></td>
-                                        <td><?php echo number_format($subject['project_marks'], 2); ?></td>
+                                        <td><?php echo number_format($first_ia, 2); ?></td>
+                                        <td><?php echo number_format($second_ia, 2); ?></td>
+                                        <td><?php echo number_format($final_exam, 2); ?></td>
+                                        <td><?php echo number_format($project, 2); ?></td>
                                         <td><?php echo number_format($total, 2); ?></td>
                                         <?php if ($user_role === 'mentor'): ?>
                                             <td>
                                                 <button class="btn btn-sm btn-primary" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#editMarksModal"
-                                                        data-subject-id="<?php echo $subject['id']; ?>"
-                                                        data-first-ia="<?php echo $subject['first_ia_marks']; ?>"
-                                                        data-second-ia="<?php echo $subject['second_ia_marks']; ?>"
-                                                        data-final-exam="<?php echo $subject['final_exam_marks']; ?>"
-                                                        data-project="<?php echo $subject['project_marks']; ?>">
+                                                        data-semester-id="<?php echo $semester['id']; ?>"
+                                                        data-subject-id="<?php echo $subject['subject_id']; ?>"
+                                                        data-first-ia="<?php echo $first_ia; ?>"
+                                                        data-second-ia="<?php echo $second_ia; ?>"
+                                                        data-final-exam="<?php echo $final_exam; ?>"
+                                                        data-project="<?php echo $project; ?>">
                                                     Edit
                                                 </button>
                                             </td>
@@ -277,6 +297,8 @@ $semesters = $stmt->get_result();
                 </div>
                 <form method="POST">
                     <div class="modal-body">
+                        <input type="hidden" name="mentee_id" value="<?php echo $mentee_id; ?>">
+                        <input type="hidden" name="semester_id" id="semester_id">
                         <input type="hidden" name="subject_id" id="subject_id">
                         <div class="mb-3">
                             <label class="form-label">First IA Marks</label>
@@ -313,12 +335,14 @@ $semesters = $stmt->get_result();
             if (editMarksModal) {
                 editMarksModal.addEventListener('show.bs.modal', function(event) {
                     const button = event.relatedTarget;
+                    const semesterId = button.getAttribute('data-semester-id');
                     const subjectId = button.getAttribute('data-subject-id');
                     const firstIa = button.getAttribute('data-first-ia');
                     const secondIa = button.getAttribute('data-second-ia');
                     const finalExam = button.getAttribute('data-final-exam');
                     const project = button.getAttribute('data-project');
 
+                    editMarksModal.querySelector('#semester_id').value = semesterId;
                     editMarksModal.querySelector('#subject_id').value = subjectId;
                     editMarksModal.querySelector('#first_ia_marks').value = firstIa;
                     editMarksModal.querySelector('#second_ia_marks').value = secondIa;
