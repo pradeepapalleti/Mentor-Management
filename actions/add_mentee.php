@@ -1,10 +1,10 @@
 <?php
 session_start();
-require_once 'db.php';
+require_once '../config/db.php';
 
 // Check if user is logged in and is a mentor
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mentor') {
-    header('Location: login.php');
+    header('Location: ../pages/login_form.php');
     exit();
 }
 
@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Redirect to mentee list with success message
             $_SESSION['success_message'] = "Mentee added successfully! Initial password is their USN.";
-            header('Location: mentee_list.php');
+            header('Location: ../pages/mentee_list.php');
             exit();
         } catch (Exception $e) {
             // Rollback transaction on error
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($error)) {
     $_SESSION['error'] = $error;
 }
-header('Location: mentee_list.php');
+header('Location: ../pages/mentee_list.php');
 exit();
 
 ?>

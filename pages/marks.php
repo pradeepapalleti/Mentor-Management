@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db.php';
+require_once '../config/db.php';
 
 // Enable error reporting
 error_reporting(E_ALL);
@@ -8,7 +8,7 @@ ini_set('display_errors', 1);
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: ../login.php');
     exit();
 }
 
@@ -98,10 +98,11 @@ $mentee = $stmt->get_result()->fetch_assoc();
     <title>Marks & Results</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
-    <?php include 'includes/sidebar.php'; ?>
+    <?php include '../includes/sidebar.php'; ?>
+    <script src="../assets/js/theme-toggle.js"></script>
 
     <div class="main-content">
         <div class="container">
@@ -134,7 +135,7 @@ $mentee = $stmt->get_result()->fetch_assoc();
                             <h2>Semester Result</h2>
                         </div>
                         <div class="d-grid gap-2">
-                            <a href="add_result.php?mentee_id=<?php echo htmlspecialchars($mentee_id); ?>" class="btn btn-primary">Add Semester Result</a>
+                            <a href="../actions/add_result.php?mentee_id=<?php echo htmlspecialchars($mentee_id); ?>" class="btn btn-primary">Add Semester Result</a>
                         </div>
                     </div>
                 </div>

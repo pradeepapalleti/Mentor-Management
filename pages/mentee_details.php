@@ -1,10 +1,10 @@
 <?php
 session_start();
-require_once 'db.php';  // Changed from includes/db_connect.php to db.php
+require_once '../config/db.php';  // Changed from includes/db_connect.php to db.php
 
 // Check if user is logged in and is a mentor
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mentor') {
-    header('Location: login.php');
+    header('Location: ../login.php');
     exit();
 }
 
@@ -25,12 +25,22 @@ $stmt->bind_param("i", $mentee_id);
 $stmt->execute();
 $mentee = $stmt->get_result()->fetch_assoc();
 
-// Get marks for the mentee
-$marks_query = "SELECT * FROM detailed_marks WHERE mentee_id = ? ORDER BY academic_year DESC, semester DESC";
-$stmt = $conn->prepare($marks_query);
+// Get certifications for the mentee
+$cert_query = "SELECT c.* FROM certifications c 
+               JOIN mentees m ON c.user_id = m.user_id 
+               WHERE m.id = ? 
+               ORDER BY c.date DESC";
+$stmt = $conn->prepare($cert_query);
 $stmt->bind_param("i", $mentee_id);
 $stmt->execute();
-$marks = $stmt->get_result();
+$certifications = $stmt->get_result();
+
+// Get activities for the mentee
+$activity_query = "SELECT * FROM activities WHERE mentee_id = ? ORDER BY date DESC";
+$stmt = $conn->prepare($activity_query);
+$stmt->bind_param("i", $mentee_id);
+$stmt->execute();
+$activities = $stmt->get_result();
 
 // Get feedback for the mentee
 $feedback_query = "SELECT f.*, m.user_id as mentor_user_id, u.name as mentor_name 
@@ -53,6 +63,7 @@ $feedbacks = $stmt->get_result();
     <title>Mentee Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         body {
             background: #0f172a;
@@ -122,7 +133,8 @@ $feedbacks = $stmt->get_result();
     </style>
 </head>
 <body>
-    <?php include 'includes/sidebar.php'; ?>
+    <?php include '../includes/sidebar.php'; ?>
+    <script src="../assets/js/theme-toggle.js"></script>
 
     <div class="main-content">
         <div class="container">
@@ -156,53 +168,82 @@ $feedbacks = $stmt->get_result();
                 </div>
             </div>
 
+            <!-- Certifications Section -->
             <div class="section">
                 <div class="section-header">
-                    <h3>Academic Performance</h3>
-                    <a href="add_result.php?mentee_id=<?php echo $mentee_id; ?>" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Add New Semester Marks
-                    </a>
+                    <h3><i class="fas fa-certificate"></i> Certifications</h3>
                 </div>
 
-                <?php while ($semester_marks = $marks->fetch_assoc()): ?>
-                <div class="table-responsive mb-4">
-                    <h4 class="mb-3" style="color: #38bdf8;">
-                        Semester <?php echo htmlspecialchars($semester_marks['semester']); ?> 
-                        (<?php echo htmlspecialchars($semester_marks['academic_year']); ?>)
-                    </h4>
-                    <table class="table table-dark table-bordered">
-                        <thead>
-                            <tr>
-                                <th>First IA</th>
-                                <th>Second IA</th>
-                                <th>Final Exam</th>
-                                <th>Project CGPA</th>
-                                <th>Overall</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><?php echo number_format($semester_marks['first_ia_marks'], 2); ?></td>
-                                <td><?php echo number_format($semester_marks['second_ia_marks'], 2); ?></td>
-                                <td><?php echo number_format($semester_marks['final_exam_marks'], 2); ?></td>
-                                <td><?php echo number_format($semester_marks['project_cgpa'], 2); ?></td>
-                                <td>
-                                    <?php
-                                    $overall = ($semester_marks['first_ia_marks'] + $semester_marks['second_ia_marks'] + $semester_marks['final_exam_marks']) / 3;
-                                    echo number_format($overall, 2);
-                                    ?>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary" onclick="editMarks(<?php echo $semester_marks['id']; ?>)">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <?php if ($certifications->num_rows > 0): ?>
+                    <div class="row">
+                        <?php while ($cert = $certifications->fetch_assoc()): ?>
+                            <div class="col-md-6 mb-3">
+                                <div class="card" style="background: #475569; border: none; border-left: 4px solid #ec4899;">
+                                    <div class="card-body">
+                                        <h5 class="card-title" style="color: #38bdf8;">
+                                            <?php echo htmlspecialchars($cert['title']); ?>
+                                        </h5>
+                                        <p class="card-text" style="color: #e2e8f0;">
+                                            <strong>Issuer:</strong> <?php echo htmlspecialchars($cert['issuer']); ?><br>
+                                            <strong>Date:</strong> <?php echo date('M d, Y', strtotime($cert['date'])); ?><br>
+                                            <?php if ($cert['description']): ?>
+                                                <strong>Description:</strong> <?php echo htmlspecialchars($cert['description']); ?><br>
+                                            <?php endif; ?>
+                                        </p>
+                                        <?php if ($cert['file_path']): ?>
+                                            <a href="../<?php echo htmlspecialchars($cert['file_path']); ?>" 
+                                               class="btn btn-sm btn-primary" target="_blank">
+                                                <i class="fas fa-download"></i> View Certificate
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endwhile; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info" style="background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;">
+                        <i class="fas fa-info-circle"></i> No certifications uploaded yet.
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Activities Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h3><i class="fas fa-tasks"></i> Activities</h3>
                 </div>
-                <?php endwhile; ?>
+
+                <?php if ($activities->num_rows > 0): ?>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($activity = $activities->fetch_assoc()): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="badge" style="background: #8b5cf6; padding: 6px 12px;">
+                                                <?php echo htmlspecialchars($activity['activity_type']); ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo nl2br(htmlspecialchars($activity['description'])); ?></td>
+                                        <td><?php echo date('M d, Y', strtotime($activity['date'])); ?></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info" style="background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;">
+                        <i class="fas fa-info-circle"></i> No activities recorded yet.
+                    </div>
+                <?php endif; ?>
             </div>
 
             <!-- Feedback Section -->
@@ -276,11 +317,5 @@ $feedbacks = $stmt->get_result();
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function editMarks(marksId) {
-            // Redirect to add_result page with edit parameter
-            window.location.href = `add_result.php?mentee_id=<?php echo $mentee_id; ?>&edit=${marksId}`;
-        }
-    </script>
 </body>
 </html> 

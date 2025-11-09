@@ -56,7 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $user = $user_result->fetch_assoc();
         error_log("Found user: " . print_r($user, true));
         
-        if (password_verify($password, $user['password'])) {
+        // Check password using MD5
+        if (md5($password) === $user['password']) {
             error_log("Password verified successfully");
             
             // Get additional details based on role

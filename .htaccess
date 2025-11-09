@@ -9,12 +9,14 @@ DirectoryIndex index.html index.php
 # Prevent directory listing
 Options -Indexes
 
-# Protect sensitive files
+# Protect sensitive files (Apache 2.4+ syntax)
 <FilesMatch "^(README\.md|\.gitignore|composer\.json|composer\.lock|\.env)$">
-    Order allow,deny
-    Deny from all
+    Require all denied
 </FilesMatch>
 
 # Protect config and setup directories
-RedirectMatch 403 ^/config/
-RedirectMatch 403 ^/setup/
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^config/ - [F,L]
+    RewriteRule ^setup/ - [F,L]
+</IfModule>

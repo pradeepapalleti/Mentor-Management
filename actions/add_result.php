@@ -1,10 +1,10 @@
 <?php
 session_start();
-require_once 'db.php';
+require_once '../config/db.php';
 
 // Check if user is logged in and is a mentor
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mentor') {
-    header('Location: login.php');
+    header('Location: ../pages/login_form.php');
     exit();
 }
 
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $conn->commit();
         $_SESSION['success_message'] = "Marks added successfully!";
-        header('Location: marks.php?mentee_id=' . $mentee_id);
+        header('Location: ../pages/mentee_details.php?id=' . $mentee_id);
         exit();
     } catch (Exception $e) {
         $conn->rollback();
@@ -56,7 +56,7 @@ $mentee_id = isset($_GET['mentee_id']) ? $_GET['mentee_id'] : null;
 
 // If no mentee_id provided, redirect to dashboard
 if (!$mentee_id) {
-    header('Location: mentor_dashboard.php');
+    header('Location: ../pages/mentor_dashboard.php');
     exit();
 }
 
@@ -71,7 +71,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    header('Location: mentor_dashboard.php');
+    header('Location: ../pages/mentor_dashboard.php');
     exit();
 }
 ?>
@@ -81,7 +81,7 @@ if ($result->num_rows === 0) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Semester Result</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         body {
             background: #0f172a;
@@ -223,7 +223,7 @@ if ($result->num_rows === 0) {
 </head>
 <body>
 <div class="container">
-    <a href="marks.php?mentee_id=<?php echo htmlspecialchars($mentee_id); ?>" class="back-link">← Back to Marks</a>
+    <a href="../pages/mentee_details.php?id=<?php echo htmlspecialchars($mentee_id); ?>" class="back-link">← Back to Mentee Details</a>
     
     <div class="form">
         <h2>Add Semester Result</h2>

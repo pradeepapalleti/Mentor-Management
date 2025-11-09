@@ -1,10 +1,10 @@
 <?php
 session_start();
-require_once 'db.php';
+require_once '../config/db.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: ../login.php');
     exit();
 }
 
@@ -77,6 +77,7 @@ error_log("Activities found: " . $activities->num_rows);
     <title>Activities</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         body {
             background: #0f172a;
@@ -125,7 +126,8 @@ error_log("Activities found: " . $activities->num_rows);
     </style>
 </head>
 <body>
-    <?php include 'includes/sidebar.php'; ?>
+    <?php include '../includes/sidebar.php'; ?>
+    <script src="../assets/js/theme-toggle.js"></script>
 
     <div class="main-content">
         <div class="container">
